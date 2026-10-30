@@ -6,6 +6,7 @@ import '../logic/badges.dart';
 import '../logic/sleep_math.dart';
 import '../providers.dart';
 import '../theme/app_colors.dart';
+import '../widgets/animated_progress.dart';
 
 class BadgesScreen extends ConsumerWidget {
   const BadgesScreen({super.key});
@@ -52,17 +53,14 @@ class BadgesScreen extends ConsumerWidget {
                   ],
                 ),
                 const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
-                  child: LinearProgressIndicator(
-                    value: BadgeCatalog.total == 0
-                        ? 0
-                        : unlocked.length / BadgeCatalog.total,
-                    minHeight: 5,
-                    backgroundColor: context.appColors.inactive.withValues(alpha: 0.5),
-                    valueColor:
-                        AlwaysStoppedAnimation(context.appColors.moonGold),
-                  ),
+                AnimatedProgressBar(
+                  value: BadgeCatalog.total == 0
+                      ? 0
+                      : unlocked.length / BadgeCatalog.total,
+                  height: 5,
+                  color: context.appColors.moonGold,
+                  backgroundColor:
+                      context.appColors.inactive.withValues(alpha: 0.5),
                 ),
               ],
             ),

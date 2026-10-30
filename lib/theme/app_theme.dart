@@ -33,13 +33,14 @@ ThemeData _buildTheme(AppPalette p) {
   return ThemeData(
     useMaterial3: true,
     brightness: p.brightness,
-    scaffoldBackgroundColor: p.bg,
+    scaffoldBackgroundColor: Colors.transparent,
     colorScheme: scheme,
     extensions: [p],
     appBarTheme: AppBarTheme(
-      backgroundColor: p.bg,
+      backgroundColor: Colors.transparent,
       foregroundColor: p.textPrimary,
       elevation: 0,
+      scrolledUnderElevation: 0,
       centerTitle: false,
       systemOverlayStyle: overlayStyle,
       titleTextStyle: TextStyle(
@@ -49,7 +50,9 @@ ThemeData _buildTheme(AppPalette p) {
       ),
     ),
     navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: p.surface,
+      backgroundColor: p.surface.withValues(alpha: isDark ? 0.72 : 0.86),
+      surfaceTintColor: Colors.transparent,
+      elevation: 0,
       indicatorColor: p.moonGold.withValues(alpha: isDark ? 0.18 : 0.14),
       labelTextStyle: WidgetStateProperty.resolveWith(
         (states) => TextStyle(

@@ -100,7 +100,17 @@ void main() {
     await tester.tap(find.text('我的'));
     await tester.pumpAndSettle();
     expect(find.text('睡眠目标'), findsOneWidget);
+    expect(find.text('打卡提醒'), findsOneWidget);
     expect(find.text('徽章墙'), findsOneWidget);
+    Future<void> scrollSettingsUntil(String text) async {
+      for (var i = 0; i < 6; i++) {
+        if (find.text(text).evaluate().isNotEmpty) return;
+        await tester.dragFrom(const Offset(180, 600), const Offset(0, -350));
+        await tester.pumpAndSettle();
+      }
+    }
+
+    await scrollSettingsUntil('导出备份');
     expect(find.text('导出备份'), findsOneWidget);
   });
 }

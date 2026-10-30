@@ -230,12 +230,38 @@ SleepAssessment assessSleep(
     final weekdayAvg =
         weekdayBeds.reduce((a, b) => a + b) / weekdayBeds.length;
     weekendDrift = (weekendAvg - weekdayAvg).round();
-    if (weekendDrift > 60) {
-      negativeFindings.add(AssessmentFinding(
-        title: '周末作息漂移',
-        detail: '周末平均比工作日晚 $weekendDrift 分钟入睡，起床也更晚。',
-      ));
-    }
+  }
+
+  final balance = sleepBalance(
+    valid,
+    today,
+    days: 7,
+    targetDurationMin: targetDurationMin,
+  );
+  if (balance.recordedDays >= 4 && balance.netMinutes <= -120) {
+    negativeFindings.add(AssessmentFinding(
+      title: '睡眠负债累积',
+      detail:
+          '近 7 天记录了 ${balance.recordedDays} 天，累计欠睡 ${formatDuration(-balance.netMinutes)}。',
+    ));
+  }
+
+  final jetlag = socialJetlag(valid, today);
+  final hasJetlag =
+      jetlag.differenceMinutes != null && jetlag.differenceMinutes! >= 60;
+  if (hasJetlag) {
+    final driftNote =
+        weekendDrift != null && weekendDrift > 30 ? '，周末平均晚 $weekendDrift 分钟入睡' : '';
+    negativeFindings.add(AssessmentFinding(
+      title: '社交时差明显',
+      detail:
+          '工作日与休息日的睡眠中点相差 ${formatDuration(jetlag.differenceMinutes!)}$driftNote。',
+    ));
+  } else if (weekendDrift != null && weekendDrift > 60) {
+    negativeFindings.add(AssessmentFinding(
+      title: '周末作息漂移',
+      detail: '周末平均比工作日晚 $weekendDrift 分钟入睡，起床也更晚。',
+    ));
   }
 
   final lateNights = valid
@@ -295,6 +321,12 @@ SleepAssessment assessSleep(
     suggestions.add('先固定每天的起床时间，比固定入睡时间更容易见效。');
   }
   if (weekendDrift != null && weekendDrift > 60) {
+    suggestions.add('周末起床时间尽量控制在工作日前后 1 小时内，避免周一重置。');
+  }
+  if (balance.recordedDays >= 4 && balance.netMinutes <= -120) {
+    suggestions.add('今晚提前 30 分钟上床，先还一部分睡眠债。');
+  }
+  if (hasJetlag && (weekendDrift == null || weekendDrift <= 60)) {
     suggestions.add('周末起床时间尽量控制在工作日前后 1 小时内，避免周一重置。');
   }
   if (lateBy > 30) {

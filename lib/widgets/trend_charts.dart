@@ -5,6 +5,7 @@ import '../data/database.dart';
 import '../logic/sleep_math.dart';
 import '../logic/stats_math.dart';
 import '../theme/app_colors.dart';
+import '../theme/motion.dart';
 
 class SleepTrendCharts extends StatelessWidget {
   const SleepTrendCharts({
@@ -193,6 +194,8 @@ class _DurationBarChart extends StatelessWidget {
         ),
         barGroups: groups,
       ),
+      duration: appMotion(context, 350),
+      curve: Curves.easeOutCubic,
     );
   }
 }
@@ -309,6 +312,8 @@ class _BedtimeLineChart extends StatelessWidget {
           ),
         ],
       ),
+      duration: appMotion(context, 350),
+      curve: Curves.easeOutCubic,
     );
   }
 }

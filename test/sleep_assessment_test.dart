@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sleep_checkin/data/database.dart';
 import 'package:sleep_checkin/logic/sleep_assessment.dart';
+import 'package:sleep_checkin/logic/stats_math.dart';
 
 DateTime d(int year, int month, int day) => DateTime(year, month, day);
 
@@ -87,7 +88,7 @@ void main() {
     expect(result.score, inInclusiveRange(0, 100));
   });
 
-  test('识别周末作息漂移', () {
+  test('识别社交时差', () {
     final records = <SleepRecord>[];
     for (var i = 0; i < 14; i++) {
       final day = d(2026, 10, 16).add(Duration(days: i));
@@ -104,9 +105,37 @@ void main() {
     final result = assessSleep(records, now: now);
     expect(
       result.findings.map((f) => f.title),
-      contains('周末作息漂移'),
+      contains('社交时差明显'),
     );
     expect(result.findings.map((f) => f.title), contains('作息波动较大'));
+  });
+
+  test('识别睡眠负债', () {
+    final records = [
+      for (var i = 0; i < 7; i++)
+        rec(
+          d(2026, 10, 23).add(Duration(days: i)),
+          bedHour: 1,
+          bedMinute: 0,
+          wakeHour: 6,
+          wakeMinute: 0,
+          quality: 3,
+        ),
+    ];
+    final balance = sleepBalance(
+      records,
+      now,
+      days: 7,
+      targetDurationMin: 420,
+    );
+    expect(balance.recordedDays, 7);
+    expect(balance.netMinutes, -840);
+    final result = assessSleep(records, now: now);
+    expect(
+      result.findings.map((f) => f.title),
+      contains('睡眠负债累积'),
+    );
+    expect(result.suggestions.any((s) => s.contains('睡眠债')), isTrue);
   });
 
   test('记录 4 天时标记样本较少但仍给出分数', () {

@@ -8,6 +8,7 @@ import 'data/database.dart';
 import 'providers.dart';
 import 'screens/shell.dart';
 import 'services/notification_service.dart';
+import 'theme/app_background.dart';
 import 'theme/app_colors.dart';
 import 'theme/app_theme.dart';
 
@@ -51,9 +52,11 @@ class SleepApp extends ConsumerWidget {
       theme: buildLightTheme(),
       darkTheme: buildDarkTheme(),
       themeMode: mode,
+      themeAnimationDuration: const Duration(milliseconds: 600),
+      themeAnimationCurve: Curves.easeInOutCubic,
       builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
         value: overlayStyle,
-        child: child!,
+        child: AppBackground(child: child!),
       ),
       locale: const Locale('zh', 'CN'),
       supportedLocales: const [Locale('zh', 'CN')],

@@ -39,6 +39,9 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
     final score = regularityScore(records, now: now);
     final monthStats = computeWindowStats(records, now, days: 30);
     final weeks = weeklySummaries(records, now: now);
+    final balance =
+        sleepBalance(records, now, days: 7, targetDurationMin: target);
+    final jetlag = socialJetlag(records, now);
     final assessment = assessSleep(
       records,
       now: now,
@@ -62,6 +65,8 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
           _buildRegularityCard(score),
           const SizedBox(height: 16),
           _buildMetricsCard(monthStats, score),
+          const SizedBox(height: 16),
+          _buildBalanceCard(balance, jetlag),
           const SizedBox(height: 16),
           _buildWeeklyCard(weeks),
         ],
@@ -601,6 +606,143 @@ class _StatsScreenState extends ConsumerState<StatsScreen> {
                 value: score == null ? '—' : '$score 分',
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBalanceCard(SleepBalance balance, SocialJetlag jetlag) {
+    final net = balance.netMinutes;
+    final String debtText;
+    if (!balance.hasData) {
+      debtText = '—';
+    } else if (net <= -30) {
+      debtText = '欠睡 ${formatDuration(-net)}';
+    } else if (net >= 30) {
+      debtText = '富余 ${formatDuration(net)}';
+    } else {
+      debtText = '基本平衡';
+    }
+    final jetlagText = jetlag.differenceMinutes == null
+        ? '—'
+        : formatDuration(jetlag.differenceMinutes);
+    final jetlagNote = jetlag.differenceMinutes == null
+        ? '工作日/休息日各需 2 天记录'
+        : (jetlag.differenceMinutes! < 60 ? '时差较小' : '周末把生物钟推后了');
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: context.appColors.surface,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text(
+            '睡眠余额',
+            style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '近 7 天睡眠负债',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: context.appColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      balance.hasData
+                          ? '记录 ${balance.recordedDays} 天'
+                          : '暂无完整记录',
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: context.appColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    debtText,
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                      color: net <= -120
+                          ? context.appColors.warning
+                          : context.appColors.textPrimary,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          const Divider(),
+          const SizedBox(height: 12),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '社交时差',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: context.appColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      jetlagNote,
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: context.appColors.textSecondary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              Flexible(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  alignment: Alignment.centerRight,
+                  child: Text(
+                    jetlagText,
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Text(
+            '负债 = 目标时长缺口累加；时差 = 工作日与休息日睡眠中点之差。',
+            style: TextStyle(
+              fontSize: 11,
+              height: 1.4,
+              color: context.appColors.textSecondary,
+            ),
           ),
         ],
       ),

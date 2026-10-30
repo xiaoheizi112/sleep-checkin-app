@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers.dart';
 import '../services/notification_service.dart';
+import '../services/reminder_scheduler.dart';
 import 'home_screen.dart';
 import 'settings_screen.dart';
 import 'stats_screen.dart';
@@ -23,6 +24,11 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await NotificationService.requestPermission();
       try {
+        await ReminderScheduler.sync(ref.read(databaseProvider));
+      } catch (_) {
+        // 提醒排期失败不影响打卡主流程。
+      }
+      try {
         final newly = await ref.read(badgeServiceProvider).checkAndUnlock();
         for (final badge in newly) {
           await NotificationService.showBadgeUnlocked(badge);
@@ -36,6 +42,7 @@ class _ShellScreenState extends ConsumerState<ShellScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.transparent,
       body: IndexedStack(
         index: _index,
         children: const [

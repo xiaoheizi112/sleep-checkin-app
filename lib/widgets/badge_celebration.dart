@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../logic/badges.dart';
 import '../providers.dart';
 import '../services/notification_service.dart';
 import '../theme/app_colors.dart';
+import '../theme/motion.dart';
 
 /// 打卡/补录完成后统一检查徽章：发通知并弹庆祝框。
 Future<void> checkBadgesAndCelebrate(
@@ -26,6 +28,7 @@ Future<void> celebrateBadges(
   List<BadgeDef> badges,
 ) async {
   if (badges.isEmpty) return;
+  HapticFeedback.mediumImpact();
   await showDialog<void>(
     context: context,
     barrierDismissible: true,
@@ -69,17 +72,36 @@ class _BadgeUnlockDialog extends StatelessWidget {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Container(
-                width: 64,
-                height: 64,
-                decoration: BoxDecoration(
-                  color: context.appColors.moonGold.withValues(alpha: 0.15),
-                  shape: BoxShape.circle,
+              TweenAnimationBuilder<double>(
+                tween: Tween(begin: 0, end: 1),
+                duration: appMotion(context, 1200),
+                curve: Curves.easeOutCubic,
+                builder: (context, t, child) => Container(
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: context.appColors.moonGold
+                            .withValues(alpha: 0.10 + 0.18 * t),
+                        blurRadius: 16 + 24 * t,
+                        spreadRadius: 1 + 3 * t,
+                      ),
+                    ],
+                  ),
+                  child: child,
                 ),
-                child: Icon(
-                  Icons.auto_awesome_rounded,
-                  color: context.appColors.moonGold,
-                  size: 32,
+                child: Container(
+                  width: 64,
+                  height: 64,
+                  decoration: BoxDecoration(
+                    color: context.appColors.moonGold.withValues(alpha: 0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Icons.auto_awesome_rounded,
+                    color: context.appColors.moonGold,
+                    size: 32,
+                  ),
                 ),
               ),
               const SizedBox(height: 14),

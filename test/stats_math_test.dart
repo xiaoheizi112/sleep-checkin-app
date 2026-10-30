@@ -135,4 +135,72 @@ void main() {
       expect(formatClockMinutes(1440), '00:00');
     });
   });
+
+  group('sleepBalance', () {
+    test('累加缺口与富余，忽略窗口外记录', () {
+      final records = [
+        rec(DateTime(2026, 10, 26), duration: 360),
+        rec(DateTime(2026, 10, 27), duration: 420),
+        rec(DateTime(2026, 10, 28), duration: 480),
+        rec(DateTime(2026, 10, 29), duration: 400),
+        rec(DateTime(2026, 10, 20), duration: 300),
+      ];
+      final balance = sleepBalance(
+        records,
+        DateTime(2026, 10, 29),
+        days: 7,
+        targetDurationMin: 420,
+      );
+      expect(balance.recordedDays, 4);
+      expect(balance.deficitMinutes, 80);
+      expect(balance.surplusMinutes, 60);
+      expect(balance.netMinutes, -20);
+    });
+
+    test('没有记录时为空', () {
+      final balance = sleepBalance(const [], DateTime(2026, 10, 29));
+      expect(balance.hasData, isFalse);
+      expect(balance.netMinutes, 0);
+    });
+  });
+
+  group('socialJetlag', () {
+    test('计算工作日与休息日睡眠中点差', () {
+      final records = [
+        rec(DateTime(2026, 10, 26),
+            bed: DateTime(2026, 10, 25, 23, 30),
+            wake: DateTime(2026, 10, 26, 6, 50)),
+        rec(DateTime(2026, 10, 27),
+            bed: DateTime(2026, 10, 26, 23, 30),
+            wake: DateTime(2026, 10, 27, 6, 50)),
+        rec(DateTime(2026, 10, 28),
+            bed: DateTime(2026, 10, 27, 23, 30),
+            wake: DateTime(2026, 10, 28, 6, 50)),
+        rec(DateTime(2026, 10, 24),
+            bed: DateTime(2026, 10, 24, 2, 30),
+            wake: DateTime(2026, 10, 24, 10, 30)),
+        rec(DateTime(2026, 10, 25),
+            bed: DateTime(2026, 10, 25, 2, 30),
+            wake: DateTime(2026, 10, 25, 10, 30)),
+      ];
+      final jetlag = socialJetlag(records, DateTime(2026, 10, 29));
+      expect(jetlag.weekdayDays, 3);
+      expect(jetlag.freeDays, 2);
+      expect(jetlag.differenceMinutes, 200);
+    });
+
+    test('任一组不足两天时返回空', () {
+      final records = [
+        rec(DateTime(2026, 10, 26),
+            bed: DateTime(2026, 10, 25, 23, 30),
+            wake: DateTime(2026, 10, 26, 6, 50)),
+        rec(DateTime(2026, 10, 24),
+            bed: DateTime(2026, 10, 24, 2, 30),
+            wake: DateTime(2026, 10, 24, 10, 30)),
+      ];
+      final jetlag = socialJetlag(records, DateTime(2026, 10, 29));
+      expect(jetlag.differenceMinutes, isNull);
+      expect(jetlag.hasData, isFalse);
+    });
+  });
 }

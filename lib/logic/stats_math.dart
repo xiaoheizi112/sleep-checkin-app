@@ -268,6 +268,19 @@ int parseEarlyBedMinutes(String? raw) {
   return minutes < 12 * 60 ? minutes + 24 * 60 : minutes;
 }
 
+/// 解析 "HH:mm" 形式的普通时间；默认 [fallback] 分钟。
+int parseClockMinutes(String? raw, {int fallback = 0}) {
+  if (raw == null) return fallback;
+  final parts = raw.split(':');
+  if (parts.length != 2) return fallback;
+  final h = int.tryParse(parts[0]);
+  final m = int.tryParse(parts[1]);
+  if (h == null || m == null || h < 0 || h > 23 || m < 0 || m > 59) {
+    return fallback;
+  }
+  return h * 60 + m;
+}
+
 /// 把 0~1440+ 的分钟数显示成 HH:mm（超过 24 点自动回绕）。
 String formatClockMinutes(int minutes) {
   final m = minutes % (24 * 60);
@@ -280,4 +293,114 @@ String formatDeltaMinutes(int? diff) {
   if (diff == null) return '首周';
   if (diff == 0) return '与上周持平';
   return diff > 0 ? '比上周多 $diff 分钟' : '比上周少 ${-diff} 分钟';
+}
+
+/// 近 N 天的睡眠负债：只统计有完整记录的天数，缺口与富余分开累加。
+class SleepBalance {
+  const SleepBalance({
+    required this.windowDays,
+    required this.recordedDays,
+    required this.deficitMinutes,
+    required this.surplusMinutes,
+  });
+
+  final int windowDays;
+  final int recordedDays;
+  final int deficitMinutes;
+  final int surplusMinutes;
+
+  bool get hasData => recordedDays > 0;
+
+  /// 负数表示欠睡，正数表示富余。
+  int get netMinutes => surplusMinutes - deficitMinutes;
+}
+
+SleepBalance sleepBalance(
+  List<SleepRecord> records,
+  DateTime now, {
+  int days = 7,
+  int targetDurationMin = 420,
+}) {
+  final end = dateOnly(now);
+  final start = end.subtract(Duration(days: days - 1));
+  var deficit = 0;
+  var surplus = 0;
+  var count = 0;
+  for (final r in records) {
+    if (r.status != 'complete' || r.durationMin == null) continue;
+    final d = dateOnly(r.anchorDate);
+    if (d.isBefore(start) || d.isAfter(end)) continue;
+    count++;
+    final diff = r.durationMin! - targetDurationMin;
+    if (diff < 0) {
+      deficit += -diff;
+    } else {
+      surplus += diff;
+    }
+  }
+  return SleepBalance(
+    windowDays: days,
+    recordedDays: count,
+    deficitMinutes: deficit,
+    surplusMinutes: surplus,
+  );
+}
+
+/// 社交时差：工作日与休息日睡眠中点（入睡 + 时长一半）的平均差距。
+class SocialJetlag {
+  const SocialJetlag({
+    required this.weekdayMidpointMin,
+    required this.freeMidpointMin,
+    required this.differenceMinutes,
+    required this.weekdayDays,
+    required this.freeDays,
+  });
+
+  final int? weekdayMidpointMin;
+  final int? freeMidpointMin;
+  final int? differenceMinutes;
+  final int weekdayDays;
+  final int freeDays;
+
+  bool get hasData => differenceMinutes != null;
+}
+
+int _sleepMidpointMinutes(SleepRecord r) {
+  final bed = normalizedBedMinutes(r.bedTime!);
+  return ((bed + r.durationMin! / 2).round()) % (24 * 60);
+}
+
+SocialJetlag socialJetlag(
+  List<SleepRecord> records,
+  DateTime now, {
+  int days = 14,
+}) {
+  final end = dateOnly(now);
+  final start = end.subtract(Duration(days: days - 1));
+  final weekday = <int>[];
+  final free = <int>[];
+  for (final r in records) {
+    if (r.status != 'complete' ||
+        r.bedTime == null ||
+        r.durationMin == null) {
+      continue;
+    }
+    final d = dateOnly(r.anchorDate);
+    if (d.isBefore(start) || d.isAfter(end)) continue;
+    (d.weekday >= 6 ? free : weekday).add(_sleepMidpointMinutes(r));
+  }
+  int? avg(List<int> values) => values.isEmpty
+      ? null
+      : (values.reduce((a, b) => a + b) / values.length).round();
+  final weekdayAvg = avg(weekday);
+  final freeAvg = avg(free);
+  final enough = weekday.length >= 2 && free.length >= 2;
+  return SocialJetlag(
+    weekdayMidpointMin: weekdayAvg,
+    freeMidpointMin: freeAvg,
+    differenceMinutes:
+        enough ? (freeAvg! - weekdayAvg!).abs() : null,
+    weekdayDays: weekday.length,
+    freeDays: free.length,
+  );
 }

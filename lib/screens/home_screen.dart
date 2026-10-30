@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/database.dart';
@@ -6,6 +7,8 @@ import '../logic/sleep_math.dart';
 import '../logic/stats_math.dart';
 import '../providers.dart';
 import '../theme/app_colors.dart';
+import '../theme/motion.dart';
+import '../widgets/animated_progress.dart';
 import '../widgets/badge_celebration.dart';
 import '../widgets/star_rating.dart';
 
@@ -154,8 +157,34 @@ class HomeScreen extends ConsumerWidget {
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      _buildPrimaryButton(
-                      phase, activeBed, handlePrimaryTap, context.appColors),
+                      AnimatedSwitcher(
+                        duration: appMotion(context, 260),
+                        switchInCurve: Curves.easeOutCubic,
+                        switchOutCurve: Curves.easeInCubic,
+                        transitionBuilder: (child, animation) {
+                          final curved = CurvedAnimation(
+                            parent: animation,
+                            curve: Curves.easeOut,
+                          );
+                          return FadeTransition(
+                            opacity: curved,
+                            child: ScaleTransition(
+                              scale: Tween<double>(begin: 0.94, end: 1)
+                                  .animate(curved),
+                              child: child,
+                            ),
+                          );
+                        },
+                        child: KeyedSubtree(
+                          key: ValueKey(phase),
+                          child: _buildPrimaryButton(
+                            phase,
+                            activeBed,
+                            handlePrimaryTap,
+                            context.appColors,
+                          ),
+                        ),
+                      ),
                       if (phase == _Phase.bedDone && activeBed != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 8),
@@ -259,7 +288,7 @@ DateTime _defaultBedTime(DateTime wake) {
   return bed.isBefore(wake) ? bed : bed.subtract(const Duration(days: 1));
 }
 
-class _CheckInButton extends StatelessWidget {
+class _CheckInButton extends StatefulWidget {
   const _CheckInButton({
     required this.icon,
     required this.title,
@@ -281,62 +310,117 @@ class _CheckInButton extends StatelessWidget {
   final VoidCallback? onTap;
 
   @override
+  State<_CheckInButton> createState() => _CheckInButtonState();
+}
+
+class _CheckInButtonState extends State<_CheckInButton> {
+  bool _pressed = false;
+
+  void _setPressed(bool value) {
+    if (widget.onTap == null || _pressed == value) return;
+    setState(() => _pressed = value);
+  }
+
+  void _handleTap() {
+    if (widget.onTap == null) return;
+    HapticFeedback.lightImpact();
+    widget.onTap!();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final active = gradient != null;
-    return Container(
-      width: 212,
-      height: 212,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: active
-            ? LinearGradient(
-                colors: gradient!,
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-              )
-            : null,
-        color: active ? null : context.appColors.surface,
-        border: active ? null : Border.all(color: context.appColors.inactive),
-        boxShadow: glow == null
-            ? null
-            : [
-                BoxShadow(
-                  color: glow!.withValues(alpha: 0.22),
-                  blurRadius: 34,
-                  offset: const Offset(0, 10),
-                ),
-              ],
-      ),
-      child: Material(
-        color: Colors.transparent,
-        shape: const CircleBorder(),
-        child: InkWell(
-          customBorder: const CircleBorder(),
-          onTap: onTap,
-          child: Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
+    final active = widget.gradient != null;
+    final foreground = widget.foreground;
+    return Semantics(
+      button: true,
+      enabled: widget.onTap != null,
+      label: '${widget.title}。${widget.subtitle}',
+      onTap: widget.onTap == null ? null : _handleTap,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTapDown: (_) => _setPressed(true),
+        onTapUp: (_) => _setPressed(false),
+        onTapCancel: () => _setPressed(false),
+        onTap: _handleTap,
+        child: AnimatedScale(
+          scale: _pressed ? 0.97 : 1,
+          duration: appMotion(context, 120),
+          curve: Curves.easeOut,
+          child: AnimatedContainer(
+            duration: appMotion(context, 220),
+            curve: Curves.easeOut,
+            width: 212,
+            height: 212,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: active
+                  ? LinearGradient(
+                      colors: widget.gradient!,
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    )
+                  : null,
+              color: active ? null : context.appColors.surface,
+              border: active
+                  ? null
+                  : Border.all(color: context.appColors.inactive),
+              boxShadow: widget.glow == null
+                  ? null
+                  : [
+                      BoxShadow(
+                        color: widget.glow!
+                            .withValues(alpha: _pressed ? 0.14 : 0.22),
+                        blurRadius: _pressed ? 24 : 34,
+                        offset: const Offset(0, 10),
+                      ),
+                    ],
+            ),
+            child: Stack(
+              fit: StackFit.expand,
               children: [
-                Icon(icon, size: 46, color: iconColor ?? foreground),
-                const SizedBox(height: 12),
-                Text(
-                  title,
-                  style: TextStyle(
-                    fontSize: 22,
-                    fontWeight: FontWeight.w700,
-                    color: foreground,
+                Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        widget.icon,
+                        size: 46,
+                        color: widget.iconColor ?? foreground,
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        widget.title,
+                        style: TextStyle(
+                          fontSize: 22,
+                          fontWeight: FontWeight.w700,
+                          color: foreground,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 20),
+                        child: Text(
+                          widget.subtitle,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 12,
+                            height: 1.3,
+                            color: foreground.withValues(alpha: 0.62),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-                const SizedBox(height: 6),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  child: Text(
-                    subtitle,
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 12,
-                      height: 1.3,
-                      color: foreground.withValues(alpha: 0.62),
+                IgnorePointer(
+                  child: AnimatedOpacity(
+                    opacity: _pressed ? 1 : 0,
+                    duration: appMotion(context, 120),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: Colors.white.withValues(alpha: 0.10),
+                      ),
                     ),
                   ),
                 ),
@@ -426,14 +510,11 @@ class _OverviewCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 8),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(3),
-            child: LinearProgressIndicator(
-              value: progress,
-              minHeight: 4,
-              backgroundColor: context.appColors.inactive.withValues(alpha: 0.5),
-              valueColor: AlwaysStoppedAnimation(context.appColors.moonGold),
-            ),
+          AnimatedProgressBar(
+            value: progress,
+            color: context.appColors.moonGold,
+            backgroundColor:
+                context.appColors.inactive.withValues(alpha: 0.5),
           ),
         ],
       ),
@@ -544,6 +625,7 @@ class _WakeSheetState extends ConsumerState<_WakeSheet> {
       helpText: isBed ? '入睡时间' : '起床时间',
     );
     if (picked == null) return;
+    HapticFeedback.selectionClick();
     setState(() {
       if (isBed) {
         _bedTod = picked;
@@ -567,7 +649,10 @@ class _WakeSheetState extends ConsumerState<_WakeSheet> {
           dream: dream.isEmpty ? null : dream,
           note: note.isEmpty ? null : note,
         );
-    if (mounted) Navigator.of(context).pop(true);
+    if (mounted) {
+      HapticFeedback.mediumImpact();
+      Navigator.of(context).pop(true);
+    }
   }
 
   @override
@@ -604,9 +689,23 @@ class _WakeSheetState extends ConsumerState<_WakeSheet> {
               style: TextStyle(fontSize: 13, color: c.textSecondary),
             ),
             const SizedBox(height: 8),
-            Text(
-              formatDuration(window.minutes),
-              style: const TextStyle(fontSize: 40, fontWeight: FontWeight.w700),
+            AnimatedSwitcher(
+              duration: appMotion(context, 180),
+              layoutBuilder: (currentChild, previousChildren) => Stack(
+                alignment: Alignment.centerLeft,
+                children: [
+                  ...previousChildren,
+                  ?currentChild,
+                ],
+              ),
+              child: Text(
+                formatDuration(window.minutes),
+                key: ValueKey(window.minutes),
+                style: const TextStyle(
+                  fontSize: 40,
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
             ),
             const SizedBox(height: 14),
             Row(

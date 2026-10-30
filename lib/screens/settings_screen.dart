@@ -3,7 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../data/database.dart';
 import '../logic/sleep_math.dart';
+import '../logic/stats_math.dart';
 import '../providers.dart';
+import '../services/notification_service.dart';
+import '../services/reminder_scheduler.dart';
 import '../theme/app_colors.dart';
 import 'badges_screen.dart';
 
@@ -19,6 +22,10 @@ class SettingsScreen extends ConsumerWidget {
         ref.watch(recordsProvider).value ?? const <SleepRecord>[];
     final best = bestStreak(completedDaysOf(records));
     final badges = ref.watch(badgesProvider).value ?? const <UnlockedBadge>[];
+    final bedReminderOn = ref.watch(reminderBedEnabledProvider);
+    final bedReminderMinutes = ref.watch(reminderBedMinutesProvider);
+    final wakeReminderOn = ref.watch(reminderWakeEnabledProvider);
+    final wakeReminderMinutes = ref.watch(reminderWakeMinutesProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('我的')),
@@ -56,6 +63,59 @@ class SettingsScreen extends ConsumerWidget {
               Text(
                 '达到达标时长记录显示为绿色；早睡目标用于首页进度与徽章判定',
                 style: TextStyle(fontSize: 12, color: context.appColors.textSecondary),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _Card(
+            title: '打卡提醒',
+            children: [
+              _ReminderRow(
+                icon: Icons.nightlight_round,
+                title: '睡前提醒',
+                minutes: bedReminderMinutes,
+                enabled: bedReminderOn,
+                onToggle: (value) => _toggleReminder(
+                  context,
+                  ref,
+                  SettingKeys.reminderBedEnabled,
+                  value,
+                ),
+                onPickTime: () => _pickReminderTime(
+                  context,
+                  ref,
+                  helpText: '睡前提醒时间',
+                  initialMinutes: bedReminderMinutes,
+                  settingKey: SettingKeys.reminderBedTime,
+                ),
+              ),
+              const Divider(),
+              _ReminderRow(
+                icon: Icons.wb_sunny_rounded,
+                title: '起床提醒',
+                minutes: wakeReminderMinutes,
+                enabled: wakeReminderOn,
+                onToggle: (value) => _toggleReminder(
+                  context,
+                  ref,
+                  SettingKeys.reminderWakeEnabled,
+                  value,
+                ),
+                onPickTime: () => _pickReminderTime(
+                  context,
+                  ref,
+                  helpText: '起床提醒时间',
+                  initialMinutes: wakeReminderMinutes,
+                  settingKey: SettingKeys.reminderWakeTime,
+                ),
+              ),
+              const SizedBox(height: 10),
+              Text(
+                '本地通知，每天重复；修改后立即生效。',
+                style: TextStyle(
+                  fontSize: 12,
+                  color: context.appColors.textSecondary,
+                ),
               ),
             ],
           ),
@@ -165,7 +225,7 @@ class SettingsScreen extends ConsumerWidget {
                       ),
                       SizedBox(height: 2),
                       Text(
-                        'v0.4.0 · M2',
+                        'v0.6.0 · 提醒与动效',
                         style: TextStyle(
                           fontSize: 12,
                           color: context.appColors.textSecondary,
@@ -185,6 +245,54 @@ class SettingsScreen extends ConsumerWidget {
         ],
       ),
     );
+  }
+
+  Future<void> _toggleReminder(
+    BuildContext context,
+    WidgetRef ref,
+    String settingKey,
+    bool enabled,
+  ) async {
+    final db = ref.read(databaseProvider);
+    await db.setSetting(settingKey, enabled ? '1' : '0');
+    if (enabled) {
+      final granted = await NotificationService.requestPermission();
+      if (!granted && context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('通知权限未开启，提醒可能不会显示')),
+        );
+      }
+    }
+    await ReminderScheduler.sync(db);
+  }
+
+  Future<void> _pickReminderTime(
+    BuildContext context,
+    WidgetRef ref, {
+    required String helpText,
+    required int initialMinutes,
+    required String settingKey,
+  }) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(
+        hour: initialMinutes ~/ 60 % 24,
+        minute: initialMinutes % 60,
+      ),
+      helpText: helpText,
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: true),
+        child: child!,
+      ),
+    );
+    if (picked == null) return;
+    final db = ref.read(databaseProvider);
+    await db.setSetting(
+      settingKey,
+      '${picked.hour.toString().padLeft(2, '0')}:'
+          '${picked.minute.toString().padLeft(2, '0')}',
+    );
+    await ReminderScheduler.sync(db);
   }
 
   Future<void> _export(BuildContext context, WidgetRef ref) async {
@@ -485,6 +593,84 @@ class _WeeklyGoalSliderState extends State<_WeeklyGoalSlider> {
           onChangeEnd: (v) => widget.onSave(_days),
         ),
       ],
+    );
+  }
+}
+
+class _ReminderRow extends StatelessWidget {
+  const _ReminderRow({
+    required this.icon,
+    required this.title,
+    required this.minutes,
+    required this.enabled,
+    required this.onToggle,
+    required this.onPickTime,
+  });
+
+  final IconData icon;
+  final String title;
+  final int minutes;
+  final bool enabled;
+  final ValueChanged<bool> onToggle;
+  final VoidCallback onPickTime;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 6),
+      child: Row(
+        children: [
+          Icon(
+            icon,
+            size: 20,
+            color: enabled
+                ? context.appColors.moonGold
+                : context.appColors.textSecondary,
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: const TextStyle(fontSize: 13)),
+                const SizedBox(height: 3),
+                InkWell(
+                  onTap: enabled ? onPickTime : null,
+                  borderRadius: BorderRadius.circular(6),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          enabled
+                              ? '每天 ${formatClockMinutes(minutes)}'
+                              : '已关闭',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: enabled
+                                ? context.appColors.moonGold
+                                : context.appColors.textSecondary,
+                          ),
+                        ),
+                        if (enabled) ...[
+                          const SizedBox(width: 4),
+                          Icon(
+                            Icons.schedule,
+                            size: 14,
+                            color: context.appColors.textSecondary,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Switch(value: enabled, onChanged: onToggle),
+        ],
+      ),
     );
   }
 }
