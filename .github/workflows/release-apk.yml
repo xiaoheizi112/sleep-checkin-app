@@ -1,0 +1,33 @@
+name: Release APK
+on:
+  push:
+    tags:
+      - "v*"
+jobs:
+  build-release-apk:
+    name: Build release APK
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+      - name: Restore gitignored android wrapper files
+        run: flutter create --platforms=android .
+      - run: flutter pub get
+      - run: flutter build apk --release
+      - name: Rename artifact
+        run: cp build/app/outputs/flutter-apk/app-release.apk sleep-checkin-${GITHUB_REF_NAME}.apk
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: sleep-checkin-${{ github.ref_name }}.apk
+          body: |
+            亮点：星夜主题 · 交互动效 · 打卡提醒 · 睡眠余额（详见 README）。
+            本 APK 由 GitHub Actions 从 tag ${{ github.ref_name }} 自动构建，可直接安装。
