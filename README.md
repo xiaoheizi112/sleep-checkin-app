@@ -6,6 +6,15 @@
 
 完全离线：无账号、无广告、无网络请求，数据只保存在本机 SQLite。
 
+## English TL;DR
+
+A **local-first Android sleep tracker** built with Flutter — bedtime / wake-up check-ins in about 10 seconds, dream notes, calendar & trend analytics, badge streaks, and a self-designed 5-dimension sleep-quality score (fully rule-based, on-device).
+
+- 📦 Ready-to-install APK in [Releases](https://github.com/xiaoheizi112/sleep-checkin-app/releases), built by GitHub Actions (debug-signed, personal use)
+- 🧪 34 unit & widget tests, CI (`analyze` + `test`) on every push
+- 📄 Product spec, data model and release history in [`docs/`](docs/睡眠打卡APP计划书.md) · [CHANGELOG](CHANGELOG.md)
+- 🇨🇳 Docs are in Chinese; the screenshots below speak for themselves.
+
 ## 功能
 
 **打卡与记录**
@@ -134,4 +143,4 @@ flutter test
 
 ## 版本
 
-当前版本 v0.6.0（versionCode 7），安装包见仓库 Releases。
+当前版本 v0.6.0（versionCode 7），安装包见仓库 Releases，完整变更历史见 [CHANGELOG.md](CHANGELOG.md)。
