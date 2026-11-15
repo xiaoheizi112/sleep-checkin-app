@@ -2,6 +2,15 @@
 
 <p align="center"><img src="docs/assets/banner.png" alt="睡眠打卡" width="100%"></p>
 
+<p align="center">
+  <a href="https://github.com/xiaoheizi112/sleep-checkin-app/actions/workflows/ci.yml"><img src="https://github.com/xiaoheizi112/sleep-checkin-app/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/xiaoheizi112/sleep-checkin-app/releases"><img src="https://img.shields.io/github/v/release/xiaoheizi112/sleep-checkin-app?color=blue&label=release" alt="release"></a>
+  <img src="https://img.shields.io/badge/Flutter-3-02569B?logo=flutter&logoColor=white" alt="Flutter">
+  <img src="https://img.shields.io/badge/Dart-3.13%2B-0175C2?logo=dart&logoColor=white" alt="Dart">
+  <img src="https://img.shields.io/badge/tests-34-brightgreen" alt="tests">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow" alt="MIT"></a>
+</p>
+
 一款只装在自己手机上的安卓睡眠记录 App：睡前 / 起床一键打卡，顺手记一句梦，用报表、徽章和睡眠质量测评帮自己坚持规律作息。
 
 完全离线：无账号、无广告、无网络请求，数据只保存在本机 SQLite。
